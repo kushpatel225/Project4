@@ -41,12 +41,13 @@ public class Hash {
             resize(graph, isArtist);
         }
         int hash = h(key, size);
+        int tombIndex = -1;
         for (int i = 0; i < size; i++) {
             int index = (hash + i * i) % size;
             HashEntry entry = table[index];
             if (entry == null) {
                 Record newRecord = graph.createNode(key);
-                int insertIndex = index;
+                int insertIndex = (tombIndex != -1) ? tombIndex : index;
                 table[insertIndex] = new HashEntry(key, newRecord);
                 count++;
                 if (isArtist) {
@@ -58,6 +59,9 @@ public class Hash {
                         + "| is added to the song database.");
                 }
                 return newRecord;
+            }
+            else if (entry.isTombStone() && tombIndex == -1) {
+                tombIndex = index;
             }
             else if (entry.getKey().equals(key)) {
                 return entry.getRecord(); // If record already there
@@ -89,16 +93,20 @@ public class Hash {
      */
     public Record remove(String key, boolean isArtist) {
         int hash = h(key, size);
-        for (int i = 0; i < size; i++) {
-            int index = (hash + i * i) % size;
+        int i = 0;
+        int index;
+        Record removed = null;
+        while (i < size) {
+            index = (hash + i * i) % size;
             HashEntry entry = table[index];
+
             if (entry == null) {
-                // Entry not found
-                return null;
+                break;
             }
-            else if (!entry.isTombStone() && entry.getKey().equals(key)) {
-                Record removed = entry.getRecord();
-                entry.setTombstone(TOMBSTONE.getName(), TOMBSTONE);
+
+            if (!entry.isTombStone() && entry.getKey().equals(key)) {
+                removed = entry.getRecord();
+                table[index].setTombstone(TOMBSTONE.getName(), TOMBSTONE);
                 count--;
                 if (isArtist) {
                     System.out.println("|" + key
@@ -109,11 +117,11 @@ public class Hash {
                         + "| is removed from the song database.");
 
                 }
-                return removed;
+                break;
             }
+            i++;
         }
-        // Not found
-        return null;
+        return removed;
     }
 
 
